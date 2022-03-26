@@ -1,0 +1,5 @@
+# pg_plan_guarantee extension
+comment = 'guarantee that your plans will never change'
+default_version = '1.0'
+module_pathname = '$libdir/pg_plan_guarantee'
+relocatable = true
