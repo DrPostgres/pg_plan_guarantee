@@ -195,6 +195,30 @@ The extension code takes many measures to prevent malicious/accidental misuse of
 Development
 -----------
 
+Provided that you have Git, VirtualBox, and Vagrant installed, you can get started like so.
+
+    git clone git://git.postgresql.org/git/postgresql.git ~/dev/POSTGRES
+    cd ~/dev/POSTGRES
+    ln -s ../Postgres_Development_Vagrantfile ./Vagrantfile
+        # ^^ See https://github.com/gurjeet/home/blob/wip/dev/Postgres_Development_Vagrantfile
+    vagrant up
+    vagrant ssh
+    # Now we're inside Vagrant/Virtualbox VM
+    cd ~/dev/POSTGRES
+    git clone git@github.com:gurjeet/pg_plan_guarantee.git contrib/pg_plan_guarantee
+    pgconfigure
+    pgmake -j4 all check install
+    pgmake -C contrib/pg_plan_guarantee all install
+    pgmake -C contrib/auto_explain all install
+    pgstart
+    pgsql #starts psql utility
+    --- do testing etc.
+    pgstop
+
+The above instructions use my custom develoment environment; they include the [pgd][] functions
+
+[pgd]: https://github.com/gurjeet/pgd
+
 Controversial Idea
 ------------------
 
