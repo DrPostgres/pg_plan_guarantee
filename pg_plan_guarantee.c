@@ -237,6 +237,7 @@ static const struct config_enum_entry track_options[] =
 //static bool pgpg_enabled; /* Is the extension enabled? */
 
 //#define pgpg_active() (!IsParallelWorker() && pgpg_enabled == true)
+static void AcquireExecutorLocks(List *stmt_list, bool acquire);
 
 static int	pgss_max;			/* max # statements to track */
 static int	pgss_track;			/* tracking level */
@@ -943,9 +944,29 @@ pgpg_planner(Query *parse,
 				else
 				{
 					/*
-					 * User wants us to use the provided plan, and send that to
-					 * the executor
+					 * User wants us to use the guaranteed- plan, and send that to
+					 * the executor.
 					 */
+
+                    Node *planned_node;
+                    List *dummy_list = NIL;
+                    PlannedStmt *planned_stmt;
+
+					elog(WARNING, "plan text length is NOT 0");
+
+                    planned_node = stringToNode(plan_text);
+
+                    if (!IsA(planned_node, PlannedStmt))
+                        elog(ERROR, "pg_plan_guarantee: the provided plan-text is not a PlannedStmt");
+
+                    planned_stmt = (PlannedStmt*)planned_node;
+
+                    dummy_list = lcons(planned_stmt, dummy_list);
+
+                    /* Acquire locks that the Executor assumes are taken the parse-analyze-plan steps. */
+                    AcquireExecutorLocks(dummy_list, true);
+
+                    return planned_stmt;
 				}
 			}
 		}
@@ -962,6 +983,61 @@ pgpg_planner(Query *parse,
 								  boundParams);
 
    return result;
+}
+
+#include "storage/lmgr.h"
+/*
+ * AcquireExecutorLocks: acquire locks needed for execution of a cached plan;
+ * or release them if acquire is false.
+ *
+ * Copied verbatim from src/backend/utils/cache/plancache.c. We could use this
+ * function from there, instead of duplicating it, if it were exported.
+ */
+static void
+AcquireExecutorLocks(List *stmt_list, bool acquire)
+{
+	ListCell   *lc1;
+
+	foreach(lc1, stmt_list)
+	{
+		PlannedStmt *plannedstmt = lfirst_node(PlannedStmt, lc1);
+		ListCell   *lc2;
+#if 0
+		if (plannedstmt->commandType == CMD_UTILITY)
+		{
+			/*
+			 * Ignore utility statements, except those (such as EXPLAIN) that
+			 * contain a parsed-but-not-planned query.  Note: it's okay to use
+			 * ScanQueryForLocks, even though the query hasn't been through
+			 * rule rewriting, because rewriting doesn't change the query
+			 * representation.
+			 */
+			Query	   *query = UtilityContainsQuery(plannedstmt->utilityStmt);
+
+			if (query)
+				ScanQueryForLocks(query, acquire);
+			continue;
+		}
+#endif
+		foreach(lc2, plannedstmt->rtable)
+		{
+			RangeTblEntry *rte = (RangeTblEntry *) lfirst(lc2);
+
+			if (rte->rtekind != RTE_RELATION)
+				continue;
+
+			/*
+			 * Acquire the appropriate type of lock on each relation OID. Note
+			 * that we don't actually try to open the rel, and hence will not
+			 * fail if it's been dropped entirely --- we'll just transiently
+			 * acquire a non-conflicting lock.
+			 */
+			if (acquire)
+				LockRelationOid(rte->relid, rte->rellockmode);
+			else
+				UnlockRelationOid(rte->relid, rte->rellockmode);
+		}
+	}
 }
 
 #if 0
