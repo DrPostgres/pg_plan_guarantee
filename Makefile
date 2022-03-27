@@ -1,16 +1,12 @@
 # contrib/pg_plan_guarantee/Makefile
 
 MODULE_big = pg_plan_guarantee
-OBJS = \
-	$(WIN32RES) \
+OBJS = 					\
+	$(WIN32RES) 		\
 	pg_plan_guarantee.o
 
 EXTENSION = pg_plan_guarantee
-DATA = pg_plan_guarantee--1.4.sql pg_plan_guarantee--1.8--1.9.sql \
-	pg_plan_guarantee--1.7--1.8.sql pg_plan_guarantee--1.6--1.7.sql \
-	pg_plan_guarantee--1.5--1.6.sql pg_plan_guarantee--1.4--1.5.sql \
-	pg_plan_guarantee--1.3--1.4.sql pg_plan_guarantee--1.2--1.3.sql \
-	pg_plan_guarantee--1.1--1.2.sql pg_plan_guarantee--1.0--1.1.sql
+DATA = 
 PGFILEDESC = "pg_plan_guarantee - Guarantee that your plans will never change"
 
 LDFLAGS_SL += $(filter -lm, $(LIBS))
