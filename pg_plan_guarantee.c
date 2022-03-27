@@ -859,88 +859,96 @@ pgpg_planner(Query *parse,
 */
 
 	if (parse->commandType == CMD_SELECT
-        && parse->jointree->fromlist == NULL
+		&& parse->jointree->fromlist == NULL
 		&& list_length(parse->targetList) == 2)
-        {
-            List *targetList = parse->targetList;
-            char *res1_name = (char*)((TargetEntry*)list_nth(targetList,0))->resname;
-            char *res2_name = (char*)((TargetEntry*)list_nth(targetList,1))->resname;
-            int expr1_type = ((Expr*)((TargetEntry*)list_nth(targetList,0))->expr)->type;
-            int expr2_type = ((Expr*)((TargetEntry*)list_nth(targetList,1))->expr)->type;
-            Const *const1 = (Const*)((TargetEntry*)list_nth(targetList,0))->expr;
-            Const *const2 = (Const*)((TargetEntry*)list_nth(targetList,1))->expr;
-            Oid const1_type = const1->consttype;
-            Oid const2_type = const2->consttype;
-            bool const1_is_null = const1->constisnull;
-            bool const2_is_null = const2->constisnull;
+		{
+			List *targetList = parse->targetList;
+			char *res1_name = (char*)((TargetEntry*)list_nth(targetList,0))->resname;
+			char *res2_name = (char*)((TargetEntry*)list_nth(targetList,1))->resname;
+			int expr1_type = ((Expr*)((TargetEntry*)list_nth(targetList,0))->expr)->type;
+			int expr2_type = ((Expr*)((TargetEntry*)list_nth(targetList,1))->expr)->type;
+			Const *const1 = (Const*)((TargetEntry*)list_nth(targetList,0))->expr;
+			Const *const2 = (Const*)((TargetEntry*)list_nth(targetList,1))->expr;
+			Oid const1_type = const1->consttype;
+			Oid const2_type = const2->consttype;
+			bool const1_is_null = const1->constisnull;
+			bool const2_is_null = const2->constisnull;
 
-            if (strcmp(res1_name, "query") == 0
-                && strcmp(res2_name, "plan") == 0
-                && expr1_type == T_Const
-                && expr2_type == T_Const
-                && const1_type == TEXTOID
-                && const2_type == TEXTOID
-                && !const1_is_null
-                && !const2_is_null)
-            {
-                char *query_text = TextDatumGetCString(const1->constvalue);
-                char *plan_text = TextDatumGetCString(const2->constvalue);
+			if (strcmp(res1_name, "query") == 0
+				&& strcmp(res2_name, "plan") == 0
+				&& expr1_type == T_Const
+				&& expr2_type == T_Const
+				&& const1_type == TEXTOID
+				&& const2_type == TEXTOID
+				&& !const1_is_null
+				&& !const2_is_null)
+			{
+				char *query_text = TextDatumGetCString(const1->constvalue);
+				char *plan_text = TextDatumGetCString(const2->constvalue);
 
-                elog(WARNING, "query: %s", query_text);
-                elog(WARNING, "plan: %s", plan_text);
+				elog(WARNING, "query: %s", query_text);
+				elog(WARNING, "plan: %s", plan_text);
 
-                if (strlen(plan_text) == 0)
-                {
-                    /*
-                     * User wants us to generate the plan and return it as
-                     * result.
-                     */
+				if (strlen(plan_text) == 0)
+				{
+					/*
+					 * User wants us to generate the plan and return it as
+					 * result.
+					 */
 
-                    Datum plan_text_datum;
+					Datum plan_text_datum;
 
-                    List *parsetree_list = pg_parse_query(query_text);
+					List *parsetree_list;
+					RawStmt *raw_parsetree;
+					List *querytree_list;
+					List *plantree_list;
+					Query *parse_copy;
 
-                    if (list_length(parsetree_list) > 1)
-                        elog(ERROR, "pg_plan_guarantee: cannot use multiple commands in query text");
+					elog(WARNING, "plan text length is 0");
 
-                    RawStmt *raw_parse_tree = linitial_node(RawStmt, parsetree_list);
-                    List *querytree_list = pg_analyze_and_rewrite_fixedparams(parsetree, query_text,
-                                                NULL, 0, NULL);
+					parsetree_list = pg_parse_query(query_text);
+					if (list_length(parsetree_list) > 1)
+						elog(ERROR, "pg_plan_guarantee: cannot use multiple commands in query text");
 
-                    if (list_length(querytree_list) > 1)
-                        elog(ERROR, "pg_plan_guarantee: cannot use multiple queries in query text");
+					raw_parsetree = linitial_node(RawStmt, parsetree_list);
 
-                    List *plantree_list = pg_plan_queries(querytree_list, query_string,
-                                        CURSOR_OPT_PARALLEL_OK, NULL);
+					querytree_list = pg_analyze_and_rewrite_fixedparams(raw_parsetree, query_text,
+												NULL, 0, NULL);
 
-                    if (list_length(plantree_list) > 1)
-                        elog(ERROR, "pg_plan_guarantee: cannot use multiple plans in query text");
+					if (list_length(querytree_list) > 1)
+						elog(ERROR, "pg_plan_guarantee: cannot use multiple queries in query text");
 
+					elog(WARNING, "querytree_list: %s", nodeToString(querytree_list));
+/*
+					plantree_list = pg_plan_queries(querytree_list, query_text,
+										CURSOR_OPT_PARALLEL_OK, NULL);
 
+					if (list_length(plantree_list) > 1)
+						elog(ERROR, "pg_plan_guarantee: cannot use multiple plans in query text");
+*/
+					if (prev_planner_hook)
+						result = prev_planner_hook(linitial_node(Query, querytree_list), query_text, cursorOptions,
+												   boundParams);
+					else
+						result = standard_planner(linitial_node(Query, querytree_list), query_text, cursorOptions,
+												  boundParams);
 
-                    PlannedStmt *plan = 
+					plan_text = nodeToString(result);
+					plan_text_datum = CStringGetTextDatum(plan_text);
 
-	                if (prev_planner_hook)
-                		result = prev_planner_hook(parse, query_string, cursorOptions,
-			                					   boundParams);
-                	else
-                		result = standard_planner(parse, query_string, cursorOptions,
-			                					  boundParams);
+					elog(WARNING, "new plan text: %s", plan_text);
 
-                    plan_text = nodeToString(result);
-                    plan_text_datum = CStringGetTextDatum(plan_text);
-
-                    const2->constvalue = plan_text_datum;
-                }
-                else
-                {
-                    /*
-                     * User wants us to use the provided plan, and send that to
-                     * the executor
-                     */
-                }
-            }
-        }
+					const2->constvalue = plan_text_datum;
+				}
+				else
+				{
+					/*
+					 * User wants us to use the provided plan, and send that to
+					 * the executor
+					 */
+				}
+			}
+		}
 
 
 	//ast = nodeToString(parse);
