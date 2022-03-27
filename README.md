@@ -79,7 +79,7 @@ Demo
 
      select $pgpg$select relkind from pg_class where relname = 'pg_class'$pgpg$
                 as query,
-            $pgpg$$pgpg$
+            ''
                 as plan;
     -[ RECORD 1 ]-----
     query | select relkind from pg_class where relname = 'pg_class'
