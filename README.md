@@ -78,7 +78,7 @@ Demo
 
 Generate the guaranteed-plan.
 
-     select $pgpg$select relkind from pg_class where relname = 'pg_class'$pgpg$
+    =# select $pgpg$select relkind from pg_class where relname = 'pg_class'$pgpg$
                 as query,
             ''
                 as plan;
@@ -88,7 +88,7 @@ Generate the guaranteed-plan.
 
 Use the guaranteed plan.
 
-     select $pgpg$select relkind from pg_class where relname = 'pg_class'$pgpg$
+     =# select $pgpg$select relkind from pg_class where relname = 'pg_class'$pgpg$
                 as query,
             $pgpg${PLANNEDSTMT :commandType 1 :queryId 0 :hasReturning false :hasModifyingCTE false :canSetTag true :transientPlan false :dependsOnRole false :parallelModeNeeded false :jitFlags 0 :planTree {INDEXSCAN :startup_cost 0.27 :total_cost 8.29 :plan_rows 1 :plan_width 1 :parallel_aware false :parallel_safe true :async_capable false :plan_node_id 0 :targetlist ({TARGETENTRY :expr {VAR :varno 1 :varattno 17 :vartype 18 :vartypmod -1 :varcollid 0 :varlevelsup 0 :varnosyn 1 :varattnosyn 17 :location 7} :resno 1 :resname relkind :ressortgroupref 0 :resorigtbl 1259 :resorigcol 17 :resjunk false}) :qual <> :lefttree <> :righttree <> :initPlan <> :extParam (b) :allParam (b) :scanrelid 1 :indexid 2663 :indexqual ({OPEXPR :opno 93 :opfuncid 62 :opresulttype 16 :opretset false :opcollid 0 :inputcollid 950 :args ({VAR :varno -3 :varattno 1 :vartype 19 :vartypmod -1 :varcollid 950 :varlevelsup 0 :varnosyn 1 :varattnosyn 2 :location 35} {CONST :consttype 19 :consttypmod -1 :constcollid 950 :constlen 64 :constbyval false :constisnull false :location 45 :constvalue 64 [ 112 103 95 99 108 97 115 115 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]}) :location 43}) :indexqualorig ({OPEXPR :opno 93 :opfuncid 62 :opresulttype 16 :opretset false :opcollid 0 :inputcollid 950 :args ({VAR :varno 1 :varattno 2 :vartype 19 :vartypmod -1 :varcollid 950 :varlevelsup 0 :varnosyn 1 :varattnosyn 2 :location 35} {CONST :consttype 19 :consttypmod -1 :constcollid 950 :constlen 64 :constbyval false :constisnull false :location 45 :constvalue 64 [ 112 103 95 99 108 97 115 115 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]}) :location 43}) :indexorderby <> :indexorderbyorig <> :indexorderbyops <> :indexorderdir 1} :rtable ({RANGETBLENTRY :alias <> :eref {ALIAS :aliasname pg_class :colnames ("oid" "relname" "relnamespace" "reltype" "reloftype" "relowner" "relam" "relfilenode" "reltablespace" "relpages" "reltuples" "relallvisible" "reltoastrelid" "relhasindex" "relisshared" "relpersistence" "relkind" "relnatts" "relchecks" "relhasrules" "relhastriggers" "relhassubclass" "relrowsecurity" "relforcerowsecurity" "relispopulated" "relreplident" "relispartition" "relrewrite" "relfrozenxid" "relminmxid" "relacl" "reloptions" "relpartbound")} :rtekind 0 :relid 1259 :relkind r :rellockmode 1 :tablesample <> :lateral false :inh false :inFromCl true :requiredPerms 2 :checkAsUser 0 :selectedCols (b 9 24) :insertedCols (b) :updatedCols (b) :extraUpdatedCols (b) :securityQuals <>}) :resultRelations <> :appendRelations <> :subplans <> :rewindPlanIDs (b) :rowMarks <> :relationOids (o 1259) :invalItems <> :paramExecTypes <> :utilityStmt <> :stmt_location 0 :stmt_len 0}$pgpg$
                 as plan;
@@ -97,10 +97,94 @@ Use the guaranteed plan.
      r
     (1 row)
 
+To see what's going on in the background, add the `auto_explain` extension to `shared_preload_libraries`, and set `client_min_messages` to `log`.
+
+    =# load 'auto_explain';
+    LOAD
+    =# set auto_explain.log_min_duration = 0;
+    SET
+    =# set client_min_messages = log;
+    SET
+
+By default, our query uses Index Scan.
+
+    =# select relkind from pg_class where relname = 'pg_class';
+    LOG:  <redacted>
+    Query Text: <redacted>
+    Index Scan using pg_class_relname_nsp_index on pg_class  (cost=0.27..8.29 rows=1 width=1)
+      Index Cond: (relname = 'pg_class'::name)
+     relkind
+    ---------
+     r
+    (1 row)
+
+Let's perform tuning to make it use a plan we want it to, say, sequential scan.
+
+    =# set enable_indexscan = off;
+    SET
+    =# set enable_bitmapscan = off;
+    SET
+    =# select relkind from pg_class where relname = 'pg_class';
+    LOG:  <redacted>
+    Query Text: <redacted>
+    Seq Scan on pg_class  (cost=0.00..19.05 rows=1 width=1)
+      Filter: (relname = 'pg_class'::name)
+     relkind
+    ---------
+     r
+    (1 row)
+
+Now that we have our desired plan being generaed by the Query Planner, let's generate a guaranteed-plan.
+
+    =# select   $pgpg$select relkind from pg_class where relname = 'pg_class'$pgpg$
+                    as query,
+                ''
+                    as plan;
+    LOG:  <redacted>
+    Query Text: <redacted>
+    Result  (cost=0.00..0.01 rows=1 width=64)
+    -[ RECORD 1 ]-----------
+    query | select relkind from pg_class where relname = 'pg_class'
+    plan  | {PLANNEDSTMT :commandType 1 :queryId 0 :hasReturning false :hasModifyingCTE false :canSetTag true :transientPlan false :dependsOnRole false :parallelModeNeeded false :jitFlags 0 :planTree {SEQSCAN :startup_cost 0.00 :total_cost 19.05 :plan_rows 1 :plan_width 1 :parallel_aware false :parallel_safe true :async_capable false :plan_node_id 0 :targetlist ({TARGETENTRY :expr {VAR :varno 1 :varattno 17 :vartype 18 :vartypmod -1 :varcollid 0 :varlevelsup 0 :varnosyn 1 :varattnosyn 17 :location 7} :resno 1 :resname relkind :ressortgroupref 0 :resorigtbl 1259 :resorigcol 17 :resjunk false}) :qual ({OPEXPR :opno 93 :opfuncid 62 :opresulttype 16 :opretset false :opcollid 0 :inputcollid 950 :args ({VAR :varno 1 :varattno 2 :vartype 19 :vartypmod -1 :varcollid 950 :varlevelsup 0 :varnosyn 1 :varattnosyn 2 :location 35} {CONST :consttype 19 :consttypmod -1 :constcollid 950 :constlen 64 :constbyval false :constisnull false :location 45 :constvalue 64 [ 112 103 95 99 108 97 115 115 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]}) :location 43}) :lefttree <> :righttree <> :initPlan <> :extParam (b) :allParam (b) :scanrelid 1} :rtable ({RANGETBLENTRY :alias <> :eref {ALIAS :aliasname pg_class :colnames ("oid" "relname" "relnamespace" "reltype" "reloftype" "relowner" "relam" "relfilenode" "reltablespace" "relpages" "reltuples" "relallvisible" "reltoastrelid" "relhasindex" "relisshared" "relpersistence" "relkind" "relnatts" "relchecks" "relhasrules" "relhastriggers" "relhassubclass" "relrowsecurity" "relforcerowsecurity" "relispopulated" "relreplident" "relispartition" "relrewrite" "relfrozenxid" "relminmxid" "relacl" "reloptions" "relpartbound")} :rtekind 0 :relid 1259 :relkind r :rellockmode 1 :tablesample <> :lateral false :inh false :inFromCl true :requiredPerms 2 :checkAsUser 0 :selectedCols (b 9 24) :insertedCols (b) :updatedCols (b) :extraUpdatedCols (b) :securityQuals <>}) :resultRelations <> :appendRelations <> :subplans <> :rewindPlanIDs (b) :rowMarks <> :relationOids (o 1259) :invalItems <> :paramExecTypes <> :utilityStmt <> :stmt_location 0 :stmt_len 0}
+
+Now let's revert the configuration changes, and then show that despite changes in the tuning/configuration, the guranteed-plan is guaranteed to be used.
+
+    =# reset enable_indexscan;
+    RESET
+    =# reset enable_bitmapscan;
+    RESET
+
+Show that the query now reverts to Index Scan.
+
+    =# select relkind from pg_class where relname = 'pg_class';
+    LOG:  <redacted>
+    Query Text: <redacted>
+    Index Scan using pg_class_relname_nsp_index on pg_class  (cost=0.27..8.29 rows=1 width=1)
+      Index Cond: (relname = 'pg_class'::name)
+     relkind
+    ---------
+     r
+    (1 row)
+
+Now use the guaranteed-plan, and see how, despite all the changes in configuration, the `pg_plan_guarantee` extenstion forces the use of the guaranteed-plan.
+
+    =# select   $pgpg$ select relkind from pg_class where relname = 'pg_class' $pgpg$
+                    as query,
+                $pgpg$ {PLANNEDSTMT :commandType 1 :queryId 0 :hasReturning false :hasModifyingCTE false :canSetTag true :transientPlan false :dependsOnRole false :parallelModeNeeded false :jitFlags 0 :planTree {SEQSCAN :startup_cost 0.00 :total_cost 19.05 :plan_rows 1 :plan_width 1 :parallel_aware false :parallel_safe true :async_capable false :plan_node_id 0 :targetlist ({TARGETENTRY :expr {VAR :varno 1 :varattno 17 :vartype 18 :vartypmod -1 :varcollid 0 :varlevelsup 0 :varnosyn 1 :varattnosyn 17 :location 7} :resno 1 :resname relkind :ressortgroupref 0 :resorigtbl 1259 :resorigcol 17 :resjunk false}) :qual ({OPEXPR :opno 93 :opfuncid 62 :opresulttype 16 :opretset false :opcollid 0 :inputcollid 950 :args ({VAR :varno 1 :varattno 2 :vartype 19 :vartypmod -1 :varcollid 950 :varlevelsup 0 :varnosyn 1 :varattnosyn 2 :location 35} {CONST :consttype 19 :consttypmod -1 :constcollid 950 :constlen 64 :constbyval false :constisnull false :location 45 :constvalue 64 [ 112 103 95 99 108 97 115 115 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]}) :location 43}) :lefttree <> :righttree <> :initPlan <> :extParam (b) :allParam (b) :scanrelid 1} :rtable ({RANGETBLENTRY :alias <> :eref {ALIAS :aliasname pg_class :colnames ("oid" "relname" "relnamespace" "reltype" "reloftype" "relowner" "relam" "relfilenode" "reltablespace" "relpages" "reltuples" "relallvisible" "reltoastrelid" "relhasindex" "relisshared" "relpersistence" "relkind" "relnatts" "relchecks" "relhasrules" "relhastriggers" "relhassubclass" "relrowsecurity" "relforcerowsecurity" "relispopulated" "relreplident" "relispartition" "relrewrite" "relfrozenxid" "relminmxid" "relacl" "reloptions" "relpartbound")} :rtekind 0 :relid 1259 :relkind r :rellockmode 1 :tablesample <> :lateral false :inh false :inFromCl true :requiredPerms 2 :checkAsUser 0 :selectedCols (b 9 24) :insertedCols (b) :updatedCols (b) :extraUpdatedCols (b) :securityQuals <>}) :resultRelations <> :appendRelations <> :subplans <> :rewindPlanIDs (b) :rowMarks <> :relationOids (o 1259) :invalItems <> :paramExecTypes <> :utilityStmt <> :stmt_location 0 :stmt_len 0} $pgpg$
+                    as plan;
+    LOG:  <redacted>
+    Query Text: <redacted>
+    Seq Scan on pg_class  (cost=0.00..19.05 rows=1 width=1)
+      Filter: (relname = 'pg_class'::name)
+     relkind
+    ---------
+     r
+    (1 row)
+
 Project Status
 --------------
 
-Alpha.
+Alpha. The extension is under active development. All constructive feedback is welcome.
 
 WARNING
 -------
