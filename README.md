@@ -39,8 +39,7 @@ Place the extension in the `extensions` directory under the Postgres
 installation directory. Then add the name of the extension, `pg_plan_guarantee`,
 to the `share_preload_libraries` variable in the `postgresql.conf` file.
 
-Disabling the Extension
------------------------
+#### Disabling the Extension
 
 If you ever wish to disable the extension, you can do so by adding the parameter
 `pg_plan_guarantee.enabled`, and setting its value to `false`. This way you
