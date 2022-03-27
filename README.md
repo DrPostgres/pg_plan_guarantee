@@ -76,7 +76,7 @@ guaranteed-plan in the second string of the same SQL command, like so:
 Demo
 ----
 
-<pre>
+
      select $pgpg$select relkind from pg_class where relname = 'pg_class'$pgpg$
                 as query,
             $pgpg$$pgpg$
@@ -84,7 +84,7 @@ Demo
     -[ RECORD 1 ]-----
     query | select relkind from pg_class where relname = 'pg_class'
     plan  | {PLANNEDSTMT :commandType 1 :queryId 0 :hasReturning false :hasModifyingCTE false :canSetTag true :transientPlan false :dependsOnRole false :parallelModeNeeded false :jitFlags 0 :planTree {INDEXSCAN :startup_cost 0.27 :total_cost 8.29 :plan_rows 1 :plan_width 1 :parallel_aware false :parallel_safe true :async_capable false :plan_node_id 0 :targetlist ({TARGETENTRY :expr {VAR :varno 1 :varattno 17 :vartype 18 :vartypmod -1 :varcollid 0 :varlevelsup 0 :varnosyn 1 :varattnosyn 17 :location 7} :resno 1 :resname relkind :ressortgroupref 0 :resorigtbl 1259 :resorigcol 17 :resjunk false}) :qual <> :lefttree <> :righttree <> :initPlan <> :extParam (b) :allParam (b) :scanrelid 1 :indexid 2663 :indexqual ({OPEXPR :opno 93 :opfuncid 62 :opresulttype 16 :opretset false :opcollid 0 :inputcollid 950 :args ({VAR :varno -3 :varattno 1 :vartype 19 :vartypmod -1 :varcollid 950 :varlevelsup 0 :varnosyn 1 :varattnosyn 2 :location 35} {CONST :consttype 19 :consttypmod -1 :constcollid 950 :constlen 64 :constbyval false :constisnull false :location 45 :constvalue 64 [ 112 103 95 99 108 97 115 115 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]}) :location 43}) :indexqualorig ({OPEXPR :opno 93 :opfuncid 62 :opresulttype 16 :opretset false :opcollid 0 :inputcollid 950 :args ({VAR :varno 1 :varattno 2 :vartype 19 :vartypmod -1 :varcollid 950 :varlevelsup 0 :varnosyn 1 :varattnosyn 2 :location 35} {CONST :consttype 19 :consttypmod -1 :constcollid 950 :constlen 64 :constbyval false :constisnull false :location 45 :constvalue 64 [ 112 103 95 99 108 97 115 115 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 ]}) :location 43}) :indexorderby <> :indexorderbyorig <> :indexorderbyops <> :indexorderdir 1} :rtable ({RANGETBLENTRY :alias <> :eref {ALIAS :aliasname pg_class :colnames ("oid" "relname" "relnamespace" "reltype" "reloftype" "relowner" "relam" "relfilenode" "reltablespace" "relpages" "reltuples" "relallvisible" "reltoastrelid" "relhasindex" "relisshared" "relpersistence" "relkind" "relnatts" "relchecks" "relhasrules" "relhastriggers" "relhassubclass" "relrowsecurity" "relforcerowsecurity" "relispopulated" "relreplident" "relispartition" "relrewrite" "relfrozenxid" "relminmxid" "relacl" "reloptions" "relpartbound")} :rtekind 0 :relid 1259 :relkind r :rellockmode 1 :tablesample <> :lateral false :inh false :inFromCl true :requiredPerms 2 :checkAsUser 0 :selectedCols (b 9 24) :insertedCols (b) :updatedCols (b) :extraUpdatedCols (b) :securityQuals <>}) :resultRelations <> :appendRelations <> :subplans <> :rewindPlanIDs (b) :rowMarks <> :relationOids (o 1259) :invalItems <> :paramExecTypes <> :utilityStmt <> :stmt_location 0 :stmt_len 0}
-</pre>
+
 Project Status
 --------------
 
