@@ -192,7 +192,10 @@ pgpg_planner(Query *parse,
 
 					dummy_list = lcons(planned_stmt, dummy_list);
 
-					/* Acquire locks that the Executor assumes are taken the parse-analyze-plan steps. */
+					/*
+					 * Acquire locks that the Executor assumes are already taken
+					 * by the parse -> analyze -> plan steps.
+					 */
 					AcquireExecutorLocks(dummy_list, true);
 
 					return planned_stmt;
@@ -218,8 +221,22 @@ pgpg_planner(Query *parse,
  * AcquireExecutorLocks: acquire locks needed for execution of a cached plan;
  * or release them if acquire is false.
  *
- * Copied verbatim from src/backend/utils/cache/plancache.c. We could use this
- * function from there, instead of duplicating it, if it were exported.
+ * Copied verbatim (except for the '#if 0' and the corresponding '#endif') from
+ * src/backend/utils/cache/plancache.c. We could use this function from there,
+ * instead of duplicating it, if it were exported. Some code was '#if 0'd out,
+ * because it contains call to another function (ScanQueryForLocks) which I
+ * don't want/need to copy here.
+ *
+ * TODO:
+ * Once this extension is in a useful state, consider asking the community
+ * to export the function AcquireExecutorLocks, so we can use it here. Yesterday
+ * (2022/06/24) I created a patch that marked the function extern, and did some
+ * analysis before contributing it upstream; the analysis showed that the
+ * function is marked private/static becuase it's not supposed to be part of the
+ * API of the component it is in. Hence it will be very difficult to convince
+ * the community to make it public/extern, when the sole user of the change
+ * (this extension) is not even in a useful state. See branch Postgres
+ * extern_AcquireExecutorLocks.
  */
 static void
 AcquireExecutorLocks(List *stmt_list, bool acquire)
